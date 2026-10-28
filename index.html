@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TeknoBicara – Teks ke Suara</title>
+<style>
+:root{--bg:#f3f6f4;--surface:#ffffff;--ink:#14231c;--muted:#52665b;--line:#cdd9d2;--accent:#0b6b4f;--accent-ink:#ffffff;--stop:#a3321f;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1713;--surface:#172420;--ink:#eaf3ee;--muted:#9bb0a4;--line:#2b3d35;--accent:#3ed1a0;--accent-ink:#06241a;--stop:#ff8a73}}
+:root[data-theme="dark"]{--bg:#0f1713;--surface:#172420;--ink:#eaf3ee;--muted:#9bb0a4;--line:#2b3d35;--accent:#3ed1a0;--accent-ink:#06241a;--stop:#ff8a73}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:18px/1.5 "Atkinson Hyperlegible","Segoe UI",Roboto,Arial,sans-serif}
+main{max-width:560px;margin:0 auto;padding:20px 16px 40px}
+h1{font-size:1.6rem;margin:4px 0 2px}
+.sub{color:var(--muted);margin:0 0 18px;font-size:1rem}
+textarea{width:100%;min-height:140px;padding:14px;font:inherit;font-size:1.25rem;color:var(--ink);background:var(--surface);border:2px solid var(--line);border-radius:12px;resize:vertical}
+textarea:focus,button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.row{display:flex;gap:10px;margin:12px 0}
+button{font:inherit;font-weight:700;min-height:56px;border-radius:12px;border:2px solid var(--accent);cursor:pointer;padding:0 16px}
+.go{flex:1;background:var(--accent);color:var(--accent-ink);font-size:1.2rem}
+.stop{background:transparent;color:var(--stop);border-color:var(--stop)}
+.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+h2{font-size:1.05rem;margin:24px 0 8px}
+.phrases{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.phrases button{background:var(--surface);color:var(--ink);border-color:var(--line);font-weight:600;text-align:left;min-height:64px;font-size:1rem}
+.phrases button:active{border-color:var(--accent)}
+.set{background:var(--surface);border:2px solid var(--line);border-radius:12px;padding:12px 14px}
+.set label{display:flex;justify-content:space-between;font-size:1rem;margin-top:8px}
+.set label:first-child{margin-top:0}
+input[type=range]{width:100%;accent-color:var(--accent);height:32px}
+select{width:100%;min-height:48px;font:inherit;font-size:1rem;background:var(--bg);color:var(--ink);border:2px solid var(--line);border-radius:10px;padding:0 8px;margin-top:6px}
+.note{color:var(--muted);font-size:.95rem;margin-top:14px}
+.add{display:flex;gap:8px;margin-top:10px}
+.add input{flex:1;min-height:48px;font:inherit;font-size:1rem;padding:0 12px;background:var(--surface);color:var(--ink);border:2px solid var(--line);border-radius:10px}
+.add button{min-height:48px}
+</style>
+</head>
+<body>
+<main>
+<h1>TeknoBicara</h1>
+<p class="sub">Ketik, lalu tekan Ucapkan. HP akan mengucapkannya dengan suara.</p>
+
+<textarea id="teks" aria-label="Teks yang akan diucapkan" placeholder="Ketik kalimat di sini…"></textarea>
+<div class="row">
+<button class="go" id="ucap">Ucapkan</button>
+<button class="stop" id="henti">Berhenti</button>
+<button class="ghost" id="hapus">Hapus</button>
+</div>
+
+<h2>Kalimat cepat</h2>
+<div class="phrases" id="frasa"></div>
+<div class="add">
+<input id="baru" aria-label="Kalimat cepat baru" placeholder="Tambah kalimat sendiri">
+<button class="ghost" id="tambah">Tambah</button>
+</div>
+
+<h2>Pengaturan suara</h2>
+<div class="set">
+<label for="kec"><span>Kecepatan</span><span id="kecv">1,0×</span></label>
+<input type="range" id="kec" min="0.5" max="1.5" step="0.1" value="1">
+<label for="vol"><span>Volume</span><span id="volv">100%</span></label>
+<input type="range" id="vol" min="0" max="1" step="0.1" value="1">
+<label for="suara"><span>Suara</span></label>
+<select id="suara"></select>
+</div>
+<p class="note" id="info"></p>
+</main>
+
+<script>
+(function(){
+var DEF=["Tolong bantu saya","Terima kasih","Di mana toilet?","Berapa harganya?","Saya tidak bisa berbicara","Tolong bicara pelan-pelan","Ya","Tidak"];
+var $=function(i){return document.getElementById(i)};
+var teks=$("teks"),sel=$("suara"),info=$("info");
+var frasa=DEF.slice(),voices=[];
+var synth=window.speechSynthesis;
+
+try{var s=localStorage.getItem("tb_frasa");if(s){var a=JSON.parse(s);if(Array.isArray(a)&&a.length)frasa=a}}catch(e){}
+function simpan(){try{localStorage.setItem("tb_frasa",JSON.stringify(frasa))}catch(e){}}
+
+function ucapkan(t){
+  t=(t||"").trim();
+  if(!t)return;
+  if(!synth){info.textContent="Browser ini belum mendukung suara. Coba Chrome atau Safari terbaru.";return}
+  synth.cancel();
+  var u=new SpeechSynthesisUtterance(t);
+  u.lang="id-ID";
+  u.rate=parseFloat($("kec").value);
+  u.volume=parseFloat($("vol").value);
+  var v=voices[sel.value];if(v){u.voice=v;u.lang=v.lang}
+  synth.speak(u);
+}
+
+function gambar(){
+  var box=$("frasa");box.innerHTML="";
+  frasa.forEach(function(f,i){
+    var b=document.createElement("button");
+    b.textContent=f;
+    b.onclick=function(){teks.value=f;ucapkan(f)};
+    b.oncontextmenu=function(e){e.preventDefault();hapusFrasa(i)};
+    var pressTimer;
+    b.ontouchstart=function(){pressTimer=setTimeout(function(){hapusFrasa(i)},900)};
+    b.ontouchend=b.ontouchmove=function(){clearTimeout(pressTimer)};
+    box.appendChild(b);
+  });
+}
+function hapusFrasa(i){
+  if(confirm("Hapus kalimat “"+frasa[i]+"”?")){frasa.splice(i,1);simpan();gambar()}
+}
+
+function muatSuara(){
+  if(!synth)return;
+  var all=synth.getVoices();
+  var id=all.filter(function(v){return /^id/i.test(v.lang)});
+  voices=id.length?id:all;
+  sel.innerHTML="";
+  voices.forEach(function(v,i){var o=document.createElement("option");o.value=i;o.textContent=v.name+" ("+v.lang+")";sel.appendChild(o)});
+  info.textContent=id.length?"Suara bahasa Indonesia ditemukan.":"Suara bahasa Indonesia belum terpasang di HP ini. Pasang lewat Pengaturan HP > Teks ke ucapan, lalu muat ulang halaman.";
+}
+muatSuara();
+if(synth)synth.onvoiceschanged=muatSuara;
+
+$("ucap").onclick=function(){ucapkan(teks.value)};
+$("henti").onclick=function(){if(synth)synth.cancel()};
+$("hapus").onclick=function(){teks.value="";teks.focus()};
+$("tambah").onclick=function(){
+  var v=$("baru").value.trim();
+  if(v){frasa.push(v);simpan();gambar();$("baru").value=""}
+};
+$("kec").oninput=function(){$("kecv").textContent=parseFloat(this.value).toFixed(1).replace(".",",")+"×"};
+$("vol").oninput=function(){$("volv").textContent=Math.round(this.value*100)+"%"};
+gambar();
+})();
+</script>
+</body>
+</html>
