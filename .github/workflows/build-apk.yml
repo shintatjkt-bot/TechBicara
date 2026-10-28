@@ -33,8 +33,11 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Install Android platform package
+            - name: Install Android platform package
         run: npm install @capacitor/android@^7.4.3
+
+      - name: Install TypeScript
+        run: npm install --save-dev typescript
 
       - name: Add Android
         run: npx cap add android
