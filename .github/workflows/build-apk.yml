@@ -4,11 +4,13 @@ name: Build TeknoBicara APK
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches:
+      - main
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -29,11 +31,10 @@ jobs:
           mkdir -p www
           cp index.html www/index.html
 
-      
       - name: Install dependencies
         run: npm install
 
-            - name: Install Android platform package
+      - name: Install Android platform package
         run: npm install @capacitor/android@^7.4.3
 
       - name: Install TypeScript
@@ -41,7 +42,6 @@ jobs:
 
       - name: Add Android
         run: npx cap add android
-        
 
       - name: Sync Android
         run: npx cap sync android
