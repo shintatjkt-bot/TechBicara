@@ -29,11 +29,16 @@ jobs:
           mkdir -p www
           cp index.html www/index.html
 
+      
       - name: Install dependencies
         run: npm install
 
+      - name: Install Android platform package
+        run: npm install @capacitor/android@^7.4.3
+
       - name: Add Android
         run: npx cap add android
+        
 
       - name: Sync Android
         run: npx cap sync android
